@@ -4,6 +4,7 @@ import math
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
+import contextlib
 
 torch.backends.cudnn.enabled = False
 
@@ -82,7 +83,8 @@ test_data = batchify(corpus.test, eval_batch_size)
 ntokens = len(corpus.dictionary)
 model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid, args.nlayers, args.dropout, args.tied)
 import torch.jit
-model = torch.jit.print_trace(model)
+model = torch.jit.traced(model, verify=False, time=False, optimize=True, enabled=True)
+#model = torch.jit.wrap_model(model)
 if args.cuda:
     model.cuda()
 
@@ -121,6 +123,19 @@ def evaluate(data_source):
         hidden = repackage_hidden(hidden)
     return total_loss[0] / len(data_source)
 
+@contextlib.contextmanager
+def _time(name, enabled=True):
+    if not enabled or not torch.cuda.is_available():
+        yield
+        return
+    stream = torch.cuda.current_stream()
+    start = torch.cuda.Event(enable_timing=True)
+    end = torch.cuda.Event(enable_timing=True)
+    stream.record_event(start)
+    yield
+    stream.record_event(end)
+    end.synchronize()
+    print("{} time: {} ms".format(name, start.elapsed_time(end)))
 
 def train():
     # Turn on training mode which enables dropout.
@@ -135,14 +150,14 @@ def train():
         # If we didn't, the model would try backpropagating all the way to start of the dataset.
         hidden = repackage_hidden(hidden)
         model.zero_grad()
-        output, hidden = model(data, hidden)
-        loss = criterion(output.view(-1, ntokens), targets)
-        loss.backward()
-        sys.exit(0)
-        # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
-        torch.nn.utils.clip_grad_norm(model.parameters(), args.clip)
-        for p in model.parameters():
-            p.data.add_(-lr, p.grad.data)
+        with _time("the_loop"):
+            output, hidden = model(data, hidden)
+            loss = criterion(output.view(-1, ntokens), targets)
+            loss.backward()
+            # `clip_grad_norm` helps prevent the exploding gradient problem in RNNs / LSTMs.
+            torch.nn.utils.clip_grad_norm(model.parameters(), args.clip)
+            for p in model.parameters():
+                p.data.add_(-lr, p.grad.data)
 
         total_loss += loss.data
 
