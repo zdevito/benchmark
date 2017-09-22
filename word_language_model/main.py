@@ -140,10 +140,35 @@ def _time(name, enabled=True):
 def train():
     # Turn on training mode which enables dropout.
     model.train()
+
+    data, targets = get_batch(train_data, 0)
     total_loss = 0
     start_time = time.time()
     ntokens = len(corpus.dictionary)
     hidden = model.init_hidden(args.batch_size)
+
+    print("Run Once")
+    model.zero_grad()
+    the_output, the_hidden = model(data, hidden)
+    loss = criterion(the_output.view(-1, ntokens), targets)
+    loss.backward()
+    saved_grads = [ p.grad.data.clone() for p in model.parameters() ]
+
+    print("Run again")
+    model.zero_grad()
+    the_output, the_hidden = model(data, hidden)
+    loss = criterion(the_output.view(-1, ntokens), targets)
+    loss.backward()
+
+    saved_grads2 = [ p.grad.data.clone() for p in model.parameters() ]
+
+    for a,b in zip(saved_grads, saved_grads2):
+        m = torch.max((a - b).abs())
+        print("M = ", m)
+        if m > 1e-6:
+            raise IndexError("what?")
+
+    raise IndexError("done")
     for batch, i in enumerate(range(0, train_data.size(0) - 1, args.bptt)):
         data, targets = get_batch(train_data, i)
         # Starting each batch, we detach the hidden state from how it was previously produced.
