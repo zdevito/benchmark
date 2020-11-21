@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 # Make all randomness deterministic
 import random
 import argparse
@@ -26,7 +25,7 @@ class Model:
     def __init__(self, device='cpu', jit=False):
         self.device = device
         self.jit = jit
-        
+
     def get_module(self):
         if self.jit:
             raise NotImplementedError()
@@ -55,7 +54,7 @@ class Model:
         model.to(opt.device).eval()
         input = (torch.rand(1, 3, 384, 512).to(opt.device),)
         return model, input
-        
+
     def train(self, niterations=1):
         # the training process is not patched to use scripted models
         if self.jit:
@@ -71,7 +70,7 @@ class Model:
 
         return training_loop(niterations)
 
-    
+
     def eval(self, niterations=1):
         model, example_inputs = self.get_module()
         img = example_inputs[0]
