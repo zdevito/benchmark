@@ -9,8 +9,11 @@ import math
 import torch as th
 from torch import nn
 
-from .utils import capture_init, center_trim
+from .utils import capture_init, center_trim_t
 
+class Ident(nn.Module):
+    def forward(x):
+        return x
 
 class BLSTM(nn.Module):
     def __init__(self, dim, layers=1):
@@ -41,7 +44,7 @@ def rescale_module(module, reference):
             rescale_conv(sub, reference)
 
 
-def upsample(x, stride):
+def upsample(x, stride: int):
     """
     Linear upsampling, the output will be `stride` times longer.
     """
@@ -52,7 +55,7 @@ def upsample(x, stride):
     return out.reshape(batch, channels, -1)
 
 
-def downsample(x, stride):
+def downsample(x, stride: int):
     """
     Downsample x by decimation.
     """
@@ -60,7 +63,7 @@ def downsample(x, stride):
 
 
 class Demucs(th.nn.Module):
-    __constants__ = ["stride"]
+    __constants__ = ["stride", "upsample"]
 
     @capture_init
     def __init__(self,
@@ -161,7 +164,7 @@ class Demucs(th.nn.Module):
         if lstm_layers:
             self.lstm = BLSTM(channels, lstm_layers)
         else:
-            self.lstm = None
+            self.lstm = Ident()
 
         if rescale:
             rescale_module(self, reference=rescale)
@@ -202,16 +205,15 @@ class Demucs(th.nn.Module):
             saved.append(x)
             if self.upsample:
                 x = downsample(x, self.stride)
-        if self.lstm:
-            x = self.lstm(x)
+        x = self.lstm(x)
         for decode in self.decoder:
             if self.upsample:
                 x = upsample(x, stride=self.stride)
-            skip = center_trim(saved.pop(-1), x)
+            skip = center_trim_t(saved.pop(-1), x)
             x = x + skip
             x = decode(x)
-        if self.final:
-            skip = center_trim(saved.pop(-1), x)
+        if self.upsample:
+            skip = center_trim_t(saved.pop(-1), x)
             x = th.cat([x, skip], dim=1)
             x = self.final(x)
 

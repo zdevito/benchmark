@@ -77,7 +77,7 @@ class Remix(nn.Module):
         device = wav.device
 
         if self.training:
-            group_size = self.group_size or batch
+            group_size = self.group_size if self.group_size != 0 else batch
             if batch % group_size != 0:
                 raise ValueError(f"Batch size {batch} must be divisible by group size {group_size}")
             groups = batch // group_size

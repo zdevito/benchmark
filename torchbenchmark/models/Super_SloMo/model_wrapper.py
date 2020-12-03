@@ -5,10 +5,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-L1_lossFn = nn.L1Loss()
-MSE_LossFn = nn.MSELoss()
-
-
 class Model(torch.nn.Module):
     def __init__(self, device='cpu'):
         super().__init__()
@@ -22,6 +18,8 @@ class Model(torch.nn.Module):
         for param in vgg16_conv_4_3.parameters():
                 param.requires_grad = False
         self.vgg16_conv_4_3 = vgg16_conv_4_3
+        self.L1_lossFn = nn.L1Loss()
+        self.MSE_LossFn = nn.MSELoss()
 
     def forward(self, trainFrameIndex, I0, I1, IFrame):
         # Calculate flow between reference frames I0 and I1
@@ -61,11 +59,11 @@ class Model(torch.nn.Module):
 
 
         # Loss
-        recnLoss = L1_lossFn(Ft_p, IFrame)
+        recnLoss = self.L1_lossFn(Ft_p, IFrame)
 
-        prcpLoss = MSE_LossFn(self.vgg16_conv_4_3(Ft_p), self.vgg16_conv_4_3(IFrame))
+        prcpLoss = self.MSE_LossFn(self.vgg16_conv_4_3(Ft_p), self.vgg16_conv_4_3(IFrame))
 
-        warpLoss = L1_lossFn(g_I0_F_t_0, IFrame) + L1_lossFn(g_I1_F_t_1, IFrame) + L1_lossFn(self.trainFlowBackWarp(I0, F_1_0), I1) + L1_lossFn(self.trainFlowBackWarp(I1, F_0_1), I0)
+        warpLoss = self.L1_lossFn(g_I0_F_t_0, IFrame) + self.L1_lossFn(g_I1_F_t_1, IFrame) + self.L1_lossFn(self.trainFlowBackWarp(I0, F_1_0), I1) + self.L1_lossFn(self.trainFlowBackWarp(I1, F_0_1), I0)
 
         loss_smooth_1_0 = torch.mean(torch.abs(F_1_0[:, :, :, :-1] - F_1_0[:, :, :, 1:])) + torch.mean(torch.abs(F_1_0[:, :, :-1, :] - F_1_0[:, :, 1:, :]))
         loss_smooth_0_1 = torch.mean(torch.abs(F_0_1[:, :, :, :-1] - F_0_1[:, :, :, 1:])) + torch.mean(torch.abs(F_0_1[:, :, :-1, :] - F_0_1[:, :, 1:, :]))

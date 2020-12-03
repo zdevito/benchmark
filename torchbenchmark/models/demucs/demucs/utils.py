@@ -27,14 +27,31 @@ def center_trim(tensor, reference):
     If the size difference != 0 mod 2, the extra sample is removed on the right side.
     """
     if hasattr(reference, "size"):
-        reference = reference.size(-1)
+        center_trim_t(tensor, reference)
+    else:
+        center_trim_i(tensor, reference)
+
+def center_trim_t(tensor, reference: th.Tensor):
+    """
+    Center trim `tensor` with respect to `reference`, along the last dimension.
+    `reference` can also be a number, representing the length to trim to.
+    If the size difference != 0 mod 2, the extra sample is removed on the right side.
+    """
+    reference_i = reference.size(-1)
+    return center_trim_i(tensor, reference_i)
+
+def center_trim_i(tensor, reference: int):
+    """
+    Center trim `tensor` with respect to `reference`, along the last dimension.
+    `reference` can also be a number, representing the length to trim to.
+    If the size difference != 0 mod 2, the extra sample is removed on the right side.
+    """
     delta = tensor.size(-1) - reference
     if delta < 0:
         raise ValueError("tensor must be larger than reference. " f"Delta is {delta}.")
     if delta:
         tensor = tensor[..., delta // 2:-(delta - delta // 2)]
     return tensor
-
 
 def average_metric(metric, count=1.):
     """
