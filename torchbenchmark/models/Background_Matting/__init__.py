@@ -112,7 +112,9 @@ class Model:
             break
 
     def get_module(self):
-        raise NotImplementedError()
+        data = next(iter(self.train_loader))
+        bg, image, seg, multi_fr = data['bg'], data['image'], data['seg'], data['multi_fr']
+        return self.netG, tuple(x.to(self.device) for x in (image, bg, seg, multi_fr))
 
     def train(self, niterations=1):
         if self.device == 'cpu':

@@ -50,11 +50,11 @@ class Model:
 
         assert cfg.MODEL.DEVICE == 'cuda'
         cfg.merge_from_file(config_filename)
-        cfg.merge_from_list(['SOLVER.IMS_PER_BATCH', '2', 
+        cfg.merge_from_list(['SOLVER.IMS_PER_BATCH', '2',
                              'SOLVER.BASE_LR', '0.0025',
-                             'SOLVER.MAX_ITER', '720000', 
-                             'SOLVER.STEPS', '(480000, 640000)', 
-                             'TEST.IMS_PER_BATCH', '1', 
+                             'SOLVER.MAX_ITER', '720000',
+                             'SOLVER.STEPS', '(480000, 640000)',
+                             'TEST.IMS_PER_BATCH', '1',
                              'MODEL.RPN.FPN_POST_NMS_TOP_N_TRAIN', '2000'])
 
         cfg.freeze()
@@ -66,7 +66,7 @@ class Model:
 
         self.optimizer = make_optimizer(cfg, self.module)
         self.scheduler = make_lr_scheduler(cfg, self.optimizer)
-        
+
         # self.module, self.optimizer = amp.initialize(
             # self.module, self.optimizer, opt_level='O0')
 
@@ -81,18 +81,18 @@ class Model:
         images = images.to(device)
         targets = [target.to(device) for target in targets]
         self.train_inputs = (images, targets)
-        
+
         self.example_inputs = (images,)
 
     def get_module(self):
-        raise NotImplementedError("self.module not directly callable unless 'with torch.no_grad'")
+        return self.module, self.example_inputs
 
     def eval(self, niter=1):
         if self.jit:
             raise NotImplementedError("JIT not supported")
         if self.device == 'cpu':
             raise NotImplementedError("CPU not supported")
-        
+
         # see backtrace: https://gist.github.com/wconstab/6aee9bc4326a4f89dbf1592d88ead8f4
         raise NotImplementedError("TODO fix this, intermittent failure on CI")
 

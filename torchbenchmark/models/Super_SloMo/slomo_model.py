@@ -245,8 +245,8 @@ class backWarp(nn.Module):
         gridX, gridY = np.meshgrid(np.arange(W), np.arange(H))
         self.W = W
         self.H = H
-        self.gridX = torch.tensor(gridX, requires_grad=False, device=device)
-        self.gridY = torch.tensor(gridY, requires_grad=False, device=device)
+        self.register_buffer('gridX', torch.tensor(gridX, requires_grad=False, device=device))
+        self.register_buffer('gridY', torch.tensor(gridY, requires_grad=False, device=device))
 
     def forward(self, img, flow):
         """

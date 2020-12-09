@@ -6,6 +6,9 @@ import tempfile
 from pathlib import Path
 # something about protobufs crashing things...
 import torch.utils.tensorboard
+skip_entirely = [
+    'maskrcnn_benchmark',
+]
 
 no_cpu_impl = [
     'Background_Matting',
@@ -54,6 +57,15 @@ def compile(*args, **kwargs):
     return None
 """)
 
+def maskrcnn_benchmark(module, exporter):
+    exporter.mock(['**.maskrcnn_benchmark._C', 'pycocotools.**', 'cv2.**', 'io', 'yaml'])
+    exporter.save_source_string('sys', """\
+class VI:
+    pass
+version_info = VI()
+version_info.major = 3
+""")
+
 
 def yolov3(module, exporter):
     # clean up some numpy objects in the model
@@ -68,14 +80,14 @@ def package(model_name, jit):
     if jit:
         result_file = f'{result_file}_jit'
 
-    if model_name in no_cpu_impl or Path(result_file).exists():
+    if model_name in skip_entirely or Path(result_file).exists():
         return
 
     print(f'packaging {result_file}')
 
     with redirect_stdout(model_logs), redirect_stderr(model_logs):
         Model = load_model(model_name)
-        m = Model(jit=False, device='cpu')
+        m = Model(jit=False, device='cuda' if model_name in no_cpu_impl else 'cpu')
         module, eg = m.get_module()
         module.eval()
     with tempfile.TemporaryDirectory(dir='.') as tempdirname:
