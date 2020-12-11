@@ -2,7 +2,7 @@ import torch
 from torch.autograd import Function
 from torch.autograd.function import once_differentiable
 
-from ... import _C
+from maskrcnn_benchmark import _C
 
 
 class DeformRoIPoolingFunction(Function):

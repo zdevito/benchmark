@@ -7,16 +7,28 @@ from pathlib import Path
 # something about protobufs crashing things...
 import torch.utils.tensorboard
 skip_entirely = [
-    'maskrcnn_benchmark',
+]
+
+cuda_individual_traces = [
+    'moco',
 ]
 
 no_cpu_impl = [
     'Background_Matting',
-    'maskrcnn_benchmark',
-    'moco',
     'pytorch_CycleGAN_and_pix2pix',
+    'moco',
     'tacotron2',
+    'maskrcnn_benchmark',
 ]
+
+
+def to_device(i, d):
+    if isinstance(i, torch.Tensor):
+        return i.to(device=d)
+    elif isinstance(i, (tuple, list)):
+        return tuple(to_device(e, d) for e in i)
+    else:
+        raise RuntimeError('inputs are weird')
 
 def tpe(x):
     if isinstance(x, list) or isinstance(x, tuple):
@@ -58,7 +70,8 @@ def compile(*args, **kwargs):
 """)
 
 def maskrcnn_benchmark(module, exporter):
-    exporter.mock(['**.maskrcnn_benchmark._C', 'pycocotools.**', 'cv2.**', 'io', 'yaml'])
+    exporter.mock(['pycocotools.**', 'cv2.**', 'io', 'yaml'])
+    exporter.extern(['maskrcnn_benchmark._C'])
     exporter.save_source_string('sys', """\
 class VI:
     pass
@@ -75,6 +88,9 @@ def yolov3(module, exporter):
     exporter.mock('yolo_utils.utils.**')
 
 
+def moco_pre(module, eg):
+    return module.module, to_device(eg, 'cuda')
+
 def package(model_name, jit):
     result_file = f'results/{model_name}'
     if jit:
@@ -84,12 +100,14 @@ def package(model_name, jit):
         return
 
     print(f'packaging {result_file}')
-
+    device = 'cuda' if model_name in no_cpu_impl else 'cpu'
     with redirect_stdout(model_logs), redirect_stderr(model_logs):
         Model = load_model(model_name)
-        m = Model(jit=False, device='cuda' if model_name in no_cpu_impl else 'cpu')
+        m = Model(jit=False, device=device)
         module, eg = m.get_module()
         module.eval()
+    model_prepro = globals().get(f'{model_name}_pre', lambda *args: args)
+    module, eg = model_prepro(module, eg)
     with tempfile.TemporaryDirectory(dir='.') as tempdirname:
         model_path = Path(tempdirname) / model_name
 
@@ -98,8 +116,14 @@ def package(model_name, jit):
                 if 'BERT' in model_name:
                     raise RuntimeError("it crashses?")
                 module2 = torch.jit.script(module)
-            except RuntimeError:
+            except (RuntimeError, torch.jit.frontend.FrontendError):
                 print(f"FAILED TO SCRIPT {model_name}, FALLING BACK TO TRACING...")
+                if model_name in cuda_individual_traces:
+                    for i in range(2):
+                        idevice = f'cuda:{i}'
+                        module.to(idevice)
+                        torch.jit.trace(module, to_device(eg, idevice), check_trace=False).save(f'{result_file}_{i}')
+                    module.to(device)
                 module2 = torch.jit.trace(module, eg, check_trace=False)
             module2.save(str(model_path))
             eg2 = eg
@@ -118,7 +142,10 @@ def package(model_name, jit):
         with torch.no_grad():
             r = module(*eg)
             r2 = module2(*eg2)
-        check_close(r, r2)
+        if model_name == 'moco' and jit:
+            pass
+        else:
+            check_close(r, r2)
         model_path.replace(result_file)
 
 

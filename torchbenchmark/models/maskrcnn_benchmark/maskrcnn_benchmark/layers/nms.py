@@ -1,6 +1,6 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 # from ._utils import _C
-from .. import _C
+import maskrcnn_benchmark_c as _C
 
 # from apex import amp
 

@@ -131,7 +131,7 @@ def create_modules(module_defs, img_size, cfg):
 class YOLOLayer(nn.Module):
     def __init__(self, anchors, nc, img_size, yolo_index, layers, stride):
         super(YOLOLayer, self).__init__()
-        self.anchors = torch.Tensor(anchors)
+        self.register_buffer('anchors', torch.Tensor(anchors))
         self.index = yolo_index  # index of this layer in layers
         self.layers = layers  # model output layer indices
         self.stride = stride  # layer stride
@@ -140,8 +140,8 @@ class YOLOLayer(nn.Module):
         self.nc = nc  # number of classes (80)
         self.no = nc + 5  # number of outputs (85)
         self.nx, self.ny, self.ng = 0, 0, 0  # initialize number of x, y gridpoints
-        self.anchor_vec = self.anchors / self.stride
-        self.anchor_wh = self.anchor_vec.view(1, self.na, 1, 1, 2)
+        self.register_buffer('anchor_vec', self.anchors / self.stride)
+        self.register_buffer('anchor_wh', self.anchor_vec.view(1, self.na, 1, 1, 2))
 
         if ONNX_EXPORT:
             self.training = False
@@ -154,7 +154,7 @@ class YOLOLayer(nn.Module):
         # build xy offsets
         if not self.training:
             yv, xv = torch.meshgrid([torch.arange(self.ny, device=device), torch.arange(self.nx, device=device)])
-            self.grid = torch.stack((xv, yv), 2).view((1, 1, self.ny, self.nx, 2)).float()
+            self.register_buffer('grid', torch.stack((xv, yv), 2).view((1, 1, self.ny, self.nx, 2)).float())
 
         if self.anchor_vec.device != device:
             self.anchor_vec = self.anchor_vec.to(device)
