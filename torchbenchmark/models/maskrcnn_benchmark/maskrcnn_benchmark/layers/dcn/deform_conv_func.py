@@ -3,7 +3,7 @@ from torch.autograd import Function
 from torch.autograd.function import once_differentiable
 from torch.nn.modules.utils import _pair
 
-import maskrcnn_benchmark_c as _C
+from maskrcnn_benchmark import _C
 
 
 class DeformConvFunction(Function):
