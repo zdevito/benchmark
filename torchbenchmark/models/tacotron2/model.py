@@ -496,7 +496,7 @@ class Tacotron2(nn.Module):
 
         return outputs
 
-    def forward(self, inputs):
+    def forward2(self, inputs):
         text_inputs, text_lengths, mels, max_len, output_lengths = inputs
         text_lengths, output_lengths = text_lengths.data, output_lengths.data
 
@@ -514,7 +514,7 @@ class Tacotron2(nn.Module):
             [mel_outputs, mel_outputs_postnet, gate_outputs, alignments],
             output_lengths)
 
-    def inference(self, inputs):
+    def forward(self, inputs):
         embedded_inputs = self.embedding(inputs).transpose(1, 2)
         encoder_outputs = self.encoder.inference(embedded_inputs)
         mel_outputs, gate_outputs, alignments = self.decoder.inference(

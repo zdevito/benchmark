@@ -113,7 +113,7 @@ class Model:
             raise NotImplementedError('CPU not supported')
         if self.jit:
             raise NotImplementedError('JIT not supported')
-        return self.model, (self.example_input,)
+        return self.model, (self.example_input[0],)
 
     def train(self, niterations=1):
         if self.device == 'cpu':

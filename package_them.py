@@ -9,6 +9,11 @@ import torch.utils.tensorboard
 skip_entirely = [
 ]
 
+skip_jit = [
+    'maskrcnn_benchmark',
+    'tacotron2',
+]
+
 cuda_individual_traces = [
     'moco',
 ]
@@ -91,9 +96,14 @@ def yolov3(module, exporter):
 def moco_pre(module, eg):
     return module.module, to_device(eg, 'cuda')
 
+def tacotron2(module, exporter):
+    exporter.mock(['librosa.**', 'scipy.**'])
+
 def package(model_name, jit):
     result_file = f'results/{model_name}'
     if jit:
+        if model_name in skip_jit:
+            return
         result_file = f'{result_file}_jit'
 
     if model_name in skip_entirely or Path(result_file).exists():
